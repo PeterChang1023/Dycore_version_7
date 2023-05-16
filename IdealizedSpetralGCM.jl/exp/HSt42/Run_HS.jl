@@ -3,8 +3,8 @@ using JGCM
 include("HS.jl")
 
 #############################################################
-end_day = 300
-spinup_day = 100
+end_day = 3
+spinup_day = 0
 
 #end_day = 2
 #spinup_day = 1

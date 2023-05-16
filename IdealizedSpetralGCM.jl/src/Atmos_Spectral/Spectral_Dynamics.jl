@@ -97,7 +97,7 @@ function Compute_Corrections!(vert_coord::Vert_Coordinate, mesh::Spectral_Spheri
     tracers_ratio   = sum_tracers_p / (sum_tracers_n)
     
     # check
-    #@info (sum_tracers_p - sum_tracers_n) (tracers_ratio)
+    @info (sum_tracers_p - sum_tracers_n) (tracers_ratio)
 
   end
   return (sum_tracers_p - sum_tracers_n)
@@ -377,7 +377,7 @@ function Spectral_Dynamics!(mesh::Spectral_Spherical_Mesh,  vert_coord::Vert_Coo
   Filtered_Leapfrog!(integrator, spe_δvor, spe_vor_p, spe_vor_c, spe_vor_n)
   Filtered_Leapfrog!(integrator, spe_δdiv, spe_div_p, spe_div_c, spe_div_n)
   Filtered_Leapfrog!(integrator, spe_δlnps, spe_lnps_p, spe_lnps_c, spe_lnps_n)
-  Filtered_Leapfrog!(integrator, spe_δt, spe_t_p, spe_t_c, spe_t_n)
+  #Filtered_Leapfrog!(integrator, spe_δt, spe_t_p, spe_t_c, spe_t_n)
 
   
   Trans_Spherical_To_Grid!(mesh, spe_vor_n, grid_vor)
@@ -498,17 +498,12 @@ function Spectral_Dynamics!(mesh::Spectral_Spherical_Mesh,  vert_coord::Vert_Coo
   
   ## Step.16
   ### spectral 
+  """
   Trans_Grid_To_Spherical!(mesh, grid_tracers_c, spe_tracers_c)
   Add_Horizontal_Advection!(mesh, spe_tracers_c, grid_u, grid_v, grid_δtracers)
   Vert_Advection!(vert_coord, grid_tracers_c, grid_Δp, grid_M_half, Δt, vert_coord.vert_advect_scheme, grid_δQ)
   grid_δtracers  .+= grid_δQ
-
-  ## Step.17
-  #### update grid tracers
-  Add_Horizontal_Advection!(mesh, spe_tracers_c, grid_u_2, grid_v_2, grid_δtracers)
-  Vert_Advection!(vert_coord, grid_tracers_c, grid_Δp_2, grid_M_half_2, Δt_2, vert_coord.vert_advect_scheme, grid_δQ)
-  grid_δtracers  .+= grid_δQ
-  
+    
   init_step = integrator.init_step
   robert_coef = integrator.robert_coef
   Δt = integrator.Δt
@@ -520,6 +515,34 @@ function Spectral_Dynamics!(mesh::Spectral_Spherical_Mesh,  vert_coord::Vert_Coo
     grid_tracers_n .= grid_tracers_p + 2*Δt*grid_δtracers
     grid_tracers_c .+= robert_coef*grid_tracers_n
   end
+  #Trans_Grid_To_Spherical!(mesh, grid_δtracers, spe_δtracers)
+  #Trans_Spherical_To_Grid!(mesh, spe_tracers_c, grid_tracers_c)
+  """
+  ## Step.17
+  #### update grid tracers
+
+  Add_Horizontal_Advection!(mesh, spe_tracers_c, grid_u_2, grid_v_2, grid_δtracers)
+  Vert_Advection!(vert_coord, grid_tracers_c, grid_Δp_2, grid_M_half_2, Δt_2, vert_coord.vert_advect_scheme, grid_δQ)
+  grid_δtracers  .+= grid_δQ
+  HS_forcing_water_vapor!(grid_tracers_c,  grid_δtracers, grid_t, grid_δt, grid_p_full)
+  #HS_Forcing()
+    
+  init_step = integrator.init_step
+  robert_coef = integrator.robert_coef
+  Δt = integrator.Δt
+  if (init_step) 
+    grid_tracers_n .= grid_tracers_c + Δt*grid_δtracers
+    grid_tracers_c .+= robert_coef*(-1.0*grid_tracers_c + grid_tracers_n)
+  else
+    grid_tracers_c .+= robert_coef*(grid_tracers_p - 2*grid_tracers_c)
+    grid_tracers_n .= grid_tracers_p + 2*Δt*grid_δtracers
+    grid_tracers_c .+= robert_coef*grid_tracers_n
+  end
+  
+  Trans_Grid_To_Spherical!(mesh, grid_t, spe_t_c)
+  Filtered_Leapfrog!(integrator, spe_δt, spe_t_p, spe_t_c, spe_t_n)
+  Trans_Spherical_To_Grid!(mesh, spe_t_n, grid_t_n)
+
     
   Compute_Corrections!(vert_coord, mesh, atmo_data, mean_ps_p, mean_energy_p, 
   grid_u_n, grid_v_n,
@@ -529,6 +552,7 @@ function Spectral_Dynamics!(mesh::Spectral_Spherical_Mesh,  vert_coord::Vert_Coo
     
   Time_Advance!(dyn_data)
   ###  
+  
   #@info "sec: ", integrator.time+1200, sum(abs.(grid_u_n)), sum(abs.(grid_v_n)), sum(abs.(grid_t_n)) , sum(abs.(grid_ps_n))
   #@info "max: ", maximum(abs.(grid_u_n)), maximum(abs.(grid_v_n)), maximum(abs.(grid_t_n)) , maximum(abs.(grid_ps_n))
   #@info "loc", grid_u_n[100,30,10],  grid_t_n[100,30,10], grid_u_n[1,32,1],  grid_t_n[1,32,1]
@@ -723,7 +747,7 @@ function Atmosphere_Update!(mesh::Spectral_Spherical_Mesh, atmo_data::Atmo_Data,
   Δt = Get_Δt(semi_implicit.integrator)
   Spectral_Dynamics_Physics!(atmo_data, mesh,  dyn_data, Δt, physcis_params)
   Spectral_Dynamics!(mesh,  vert_coord , atmo_data, dyn_data, semi_implicit)
-
+ 
   grid_ps , grid_Δp, grid_p_half, grid_lnp_half, grid_p_full, grid_lnp_full = dyn_data.grid_ps_c,  dyn_data.grid_Δp, dyn_data.grid_p_half, 
                                                                               dyn_data.grid_lnp_half, dyn_data.grid_p_full, dyn_data.grid_lnp_full 
   grid_t = dyn_data.grid_t_c
@@ -749,7 +773,39 @@ function Atmosphere_Update!(mesh::Spectral_Spherical_Mesh, atmo_data::Atmo_Data,
   return
 end 
 
-
+function HS_forcing_water_vapor!(grid_tracers_c::Array{Float64, 3}, grid_δtracers::Array{Float64, 3}, grid_t::Array{Float64, 3}, grid_δt::Array{Float64, 3}, grid_p_full::Array{Float64, 3})
+  es  = zeros(size(grid_tracers_c))
+  extra_e = zeros(size(grid_tracers_c))
+  qvs = zeros(size(grid_tracers_c))
+  cp  = 1004.
+  Lv = 2.5*10^6.
+  Rv = 461.
+  day_to_sec = 86400.
+  one_array  = zeros(size(grid_t))
+  one_array .= 1.0
+    
+  new_array  = zeros(size(grid_t))
+  new_array .= 273.15
+  initial_RH  = 1.0
+  es[:,:,:] .= 6.11*exp.(Lv/Rv*(one_array[:,:,:] ./ new_array[:,:,:]-one_array[:,:,:] ./ grid_t[:,:,:])) * initial_RH
+  for k = 1:20
+        for j=1:64
+            for i=1:128
+                if grid_tracers_c[i,j,k] >= es[i,j,k]
+                    extra_e[i,j,k] = grid_tracers_c[i,j,k] - es[i,j,k]
+                    grid_tracers_c[i,j,k] = es[i,j,k]
+                    #@info grid_tracers_c[i,j,k], es[i,j,k], extra_e[i,j,k]
+                    #grid_tracers_c[i,j,k] -= extra_e[i,j,k]  
+                    #grid_δtracers[i,j,k]  -= extra_e[i,j,k] / day_to_sec
+                   
+                else
+                    grid_tracers_c[i,j,k] = grid_tracers_c[i,j,k] 
+                end
+            end
+        end
+  grid_δt[:,:,k] .+= (extra_e[:,:,k] ./1000  .*0.622 ./(grid_p_full[:,:,k] ./ 100.) .* Lv ./ cp) ./ day_to_sec
+  end
+end
 # function Spectral_Dynamics_Main()
 #   # the decay of a sinusoidal disturbance to a zonally symmetric flow 
 #   # that resembles that found in the upper troposphere in Northern winter.

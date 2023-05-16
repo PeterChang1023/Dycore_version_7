@@ -77,6 +77,7 @@ function Newtonian_Damping!(atmo_data::Atmo_Data, sinθ::Array{Float64,1}, grid_
   # PyPlot.colorbar()
   # PyPlot.gca().invert_yaxis()
   # ######
+  
   ### By CJY4
   es  = zeros(size(grid_tracers_c))
   extra_e = zeros(size(grid_tracers_c))
@@ -107,8 +108,7 @@ function Newtonian_Damping!(atmo_data::Atmo_Data, sinθ::Array{Float64,1}, grid_
             end
         end
   end
-    
-
+  
   ###
   for k=1:nd
     σ .= grid_p_full[:,:,k]./grid_ps
@@ -122,7 +122,7 @@ function Newtonian_Damping!(atmo_data::Atmo_Data, sinθ::Array{Float64,1}, grid_
     #rad_plus_latent_heat .= -k_t .* (grid_t[:,:,k]  - grid_t_eq[:,:,k]) + (pre[:,:,k] * Lv / cp)
 
     grid_δt[:,:,k] .-= k_t .* (grid_t[:,:,k]  - grid_t_eq[:,:,k]) 
-    grid_δt[:,:,k] .+= (extra_e[:,:,k] ./1000  .*0.622 ./(grid_p_full[:,:,k] ./ 100.) .* Lv ./ cp) ./ day_to_sec
+    
     
     
   end
